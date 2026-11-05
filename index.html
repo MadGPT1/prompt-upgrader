@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Upgrader — free AI prompt checker</title>
+<meta name="description" content="Paste a prompt, get a score and a sharper rewrite. Free, runs in your browser, works for ChatGPT, Claude, Gemini and any AI assistant.">
+<meta property="og:title" content="Prompt Upgrader — free AI prompt checker">
+<meta property="og:description" content="Paste a prompt, get a score and a sharper rewrite. Free, no sign-up, runs in your browser.">
+<style>
+:root{
+  --bg:#0e0e11; --panel:#17171c; --line:#2a2a32; --text:#ececf1; --muted:#9a9aa6;
+  --accent:#e5243b; --accent-soft:#3a1219; --good:#3ecf8e; --warn:#f5a524;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f7f7f9; --panel:#ffffff; --line:#e3e3e8; --text:#16161b; --muted:#5d5d68;
+    --accent:#d01f35; --accent-soft:#fde8eb; --good:#11865a; --warn:#a86a00;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:40px 16px 64px}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.15;margin:0 0 8px;letter-spacing:-.02em}
+h1 span{color:var(--accent)}
+.lead{color:var(--muted);margin:0 0 28px;max-width:640px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+label{display:block;font-weight:600;margin-bottom:8px}
+textarea{width:100%;min-height:130px;resize:vertical;background:transparent;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit}
+textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center}
+button{font:inherit;font-weight:600;border-radius:10px;padding:10px 16px;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--text)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.examples{color:var(--muted);font-size:14px}
+.examples a{color:var(--text);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+#out{display:none;margin-top:22px}
+.score{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.ring{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:22px;flex:none}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.checks li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+.checks .ic{flex:none;width:22px;text-align:center;font-weight:700}
+.ok .ic{color:var(--good)} .bad .ic{color:var(--accent)}
+.checks small{display:block;color:var(--muted)}
+h2{font-size:18px;margin:22px 0 10px}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px;margin:0;font:14px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}
+.cta{margin-top:28px;padding:18px;border-radius:14px;background:var(--accent-soft);border:1px solid var(--line)}
+.cta a{color:var(--accent);font-weight:600}
+footer{margin-top:40px;color:var(--muted);font-size:14px}
+footer a{color:var(--muted)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>Prompt <span>Upgrader</span></h1>
+  <p class="lead">Paste the prompt you were about to send to an AI. Get a score, see what's missing, and copy a sharper version. Free, no sign-up, nothing leaves your browser.</p>
+
+  <section class="panel">
+    <label for="p">Your prompt</label>
+    <textarea id="p" placeholder="e.g. Could you maybe help me write a cold email for my SaaS?"></textarea>
+    <div class="row">
+      <button class="primary" id="go">Check my prompt</button>
+      <span class="examples">Try: <a data-ex="Could you maybe help me write a cold email for my SaaS?">cold email</a> · <a data-ex="is this code good?">code review</a> · <a data-ex="why doesn't my python script work">debugging</a></span>
+    </div>
+  </section>
+
+  <section id="out" aria-live="polite">
+    <div class="panel">
+      <div class="score"><div class="ring" id="ring">0</div><div><strong id="verdict"></strong><br><span class="examples" id="sub"></span></div></div>
+      <ul class="checks" id="checks"></ul>
+      <h2>Upgraded prompt</h2>
+      <pre id="rewrite"></pre>
+      <div class="row"><button id="copy">Copy upgraded prompt</button><span class="examples" id="copied"></span></div>
+    </div>
+    <div class="cta">
+      <strong>Tired of AI answers that hedge, lecture or refuse?</strong><br>
+      <a href="https://madgpt.io/?ref=prompt-upgrader" target="_blank" rel="noopener">MadGPT</a> puts 7 models in one chat, including an opt-in Uncensored model and a VS Code agent. Free trial in the Telegram bot.
+    </div>
+  </section>
+
+  <footer>
+    More copy-paste prompts: <a href="https://github.com/MadGPT1/ai-code-review-prompts">25 prompts for code review &amp; debugging</a>.
+    Made by the <a href="https://madgpt.io/?ref=prompt-upgrader">MadGPT</a> team. Runs entirely in your browser.
+  </footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const HEDGES=/\b(could you|can you|would you|maybe|perhaps|please help|help me|i was wondering|if possible|kind of|sort of|try to)\b/i;
+const VAGUE=/\b(good|better|nice|some|stuff|things|etc|anything|something)\b/i;
+const FORMAT=/\b(list|table|bullet|json|markdown|steps|code only|output only|in \d+ (words|lines|sentences)|\d+ (words|bullets|points|options|ideas)|format|paragraph)\b/i;
+const CONTEXT=/\b(i am|i'm|we are|my |our |for a|for my|audience|context|because|project|using|built with|version)\b/i;
+const CONSTR=/\b(must|don't|do not|avoid|no more than|at most|under \d+|limit|only|without|max(imum)?)\b/i;
+const GOAL=/\b(so that|goal|in order to|i want|i need|purpose|to get|to make)\b/i;
+const YESNO=/^\s*(is|are|does|do|can|should|will|would)\b[^?]*\?\s*$/i;
+const CODE=/\b(code|bug|error|function|script|python|javascript|sql|api|stack trace|exception|compile|deploy)\b/i;
+
+function analyze(t){
+  const words=t.trim().split(/\s+/).filter(Boolean).length;
+  const c=[];
+  c.push({ok:!HEDGES.test(t), name:"Asks for the result, not permission", tip:"Drop \"could you / maybe / help me\". Say what to do: \"Write…\", \"List…\", \"Fix…\"."});
+  c.push({ok:!YESNO.test(t), name:"Not a yes/no question", tip:"\"Is this good?\" gets \"Yes, looks good!\". Ask \"What are the 3 most likely ways this fails?\"."});
+  c.push({ok:CONTEXT.test(t)||words>40, name:"Gives context", tip:"Who you are, what it's for, what you already have."});
+  c.push({ok:GOAL.test(t), name:"States the goal", tip:"Say what the answer is for: \"so that…\", \"I need…\"."});
+  c.push({ok:FORMAT.test(t), name:"Specifies the output format", tip:"Length, structure, or \"output only the X\"."});
+  c.push({ok:CONSTR.test(t), name:"Sets constraints", tip:"Limits, must-haves, things to avoid."});
+  c.push({ok:!VAGUE.test(t)||words>25, name:"Avoids vague words", tip:"Replace \"good\", \"some\", \"stuff\" with specifics."});
+  if(CODE.test(t)) c.push({ok:/error|expected|traceback|exception|line \d+/i.test(t), name:"Includes the error and what you expected", tip:"Paste the exact error, the failing function, and the expected behaviour."});
+  return c;
+}
+function stripHedges(t){
+  return t.replace(/\b(could you|can you|would you)( please)?( maybe)?\s*/ig,"")
+          .replace(/\b(please help me( to)?|help me( to)?|i was wondering if|maybe|perhaps|if possible)\s*/ig,"")
+          .replace(/\?\s*$/,"").replace(/\s{2,}/g," ").trim();
+}
+function rewrite(t,c){
+  let task=stripHedges(t); if(task) task=task[0].toUpperCase()+task.slice(1);
+  if(YESNO.test(t)) task="Review the following and list the 3 most likely problems, ranked by impact, with a concrete fix for each. Original question: \""+t.trim()+"\"";
+  const isCode=CODE.test(t);
+  const lines=["TASK: "+task+(task.endsWith(".")?"":".")];
+  lines.push("CONTEXT: [who you are, what this is for, what you already have]");
+  const isReview=YESNO.test(t)||/\breview\b/i.test(t);
+  if(isCode&&isReview){lines.push("CODE: [paste the code to review]");}
+  else if(isCode){lines.push("ERROR (exact): [paste it]");lines.push("CODE: [paste the failing function, not the whole repo]");lines.push("EXPECTED: [what should happen]");}
+  if(!GOAL.test(t)) lines.push("GOAL: [what you'll do with the answer]");
+  if(!CONSTR.test(t)) lines.push("CONSTRAINTS: [length, tone, must include / must avoid]");
+  lines.push(FORMAT.test(t)?"FORMAT: as specified above.":(isCode&&isReview?"FORMAT: numbered list: problem, why it breaks, fix (as code).":isCode?"FORMAT: root cause in 2 sentences, then the minimal fix as code. No extra explanation.":"FORMAT: [e.g. 3 options, then pick the best; or a 5-bullet list]. Output only the result."));
+  lines.push("If anything is ambiguous, state your assumption in one line and continue.");
+  return lines.join("\n");
+}
+function run(){
+  const t=$("p").value.trim(); if(!t){$("p").focus();return;}
+  const c=analyze(t), ok=c.filter(x=>x.ok).length, s=Math.round(ok/c.length*100);
+  const col=s>=75?"var(--good)":s>=45?"var(--warn)":"var(--accent)";
+  $("ring").textContent=s; $("ring").style.border="4px solid "+col; $("ring").style.color=col;
+  $("verdict").textContent=s>=75?"Solid prompt":s>=45?"Decent, but leaving answers on the table":"This will get a vague answer";
+  $("sub").textContent=ok+" of "+c.length+" checks passed";
+  $("checks").innerHTML=c.map(x=>`<li class="${x.ok?"ok":"bad"}"><span class="ic">${x.ok?"✓":"✗"}</span><div>${x.name}${x.ok?"":"<small>"+x.tip+"</small>"}</div></li>`).join("");
+  $("rewrite").textContent=rewrite(t,c);
+  $("out").style.display="block"; $("copied").textContent="";
+  $("out").scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("go").onclick=run;
+$("p").addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey))run();});
+document.querySelectorAll("[data-ex]").forEach(a=>a.onclick=()=>{$("p").value=a.dataset.ex;run();});
+$("copy").onclick=async()=>{try{await navigator.clipboard.writeText($("rewrite").textContent);$("copied").textContent="Copied.";}catch(e){$("copied").textContent="Select the text and copy it manually.";}};
+</script>
+</body>
+</html>
